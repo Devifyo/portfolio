@@ -26,12 +26,15 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
     public $avatarUpload        = null;
     public $projectImageUpload  = null;
     public int $projectImageIndex = -1;
+    public bool $showProjectImageModal = false;
 
     // File uploads — tech stack icons
     public $categoryIconUpload  = null;
     public int $categoryIconTarget = -1;
     public $itemIconUpload      = null;
     public ?int $itemIconUploadTarget = null;
+    public int $itemIconUploadCategory = -1;
+    public bool $showIconModal = false;
 
     // Stats
     public int $stat_startups = 0;
@@ -115,7 +118,13 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
 
     public function updatedAvatarUpload(): void
     {
-        $this->validate(['avatarUpload' => ['image', 'max:2048']]);
+        $this->validate(
+            ['avatarUpload' => ['image', 'max:2048']],
+            [
+                'avatarUpload.image' => 'Please select a valid image file.',
+                'avatarUpload.max'   => 'Profile photo must be smaller than 2MB.',
+            ]
+        );
     }
 
     // ---- Project image upload ----
@@ -127,7 +136,14 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
 
     public function confirmProjectImage(int $i): void
     {
-        $this->validate(['projectImageUpload' => ['required', 'image', 'max:5120']]);
+        $this->validate(
+            ['projectImageUpload' => ['required', 'image', 'max:5120']],
+            [
+                'projectImageUpload.required' => 'Please select an image first.',
+                'projectImageUpload.image'    => 'The file must be an image (JPG, PNG, or WebP).',
+                'projectImageUpload.max'      => 'This image is too heavy. Please use a file smaller than 5MB.',
+            ]
+        );
         $path = $this->projectImageUpload->store('projects', 'public');
         $this->projects[$i]['image'] = $path;
         $this->projectImageUpload  = null;
@@ -138,6 +154,28 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
     {
         $this->projectImageUpload = null;
         $this->projectImageIndex  = -1;
+        $this->showProjectImageModal = false;
+    }
+
+    public function openProjectImageModal(int $i): void
+    {
+        $this->projectImageIndex = $i;
+        $this->showProjectImageModal = true;
+    }
+
+    public function closeProjectImageModal(): void
+    {
+        $this->showProjectImageModal = false;
+        $this->projectImageUpload = null;
+        $this->projectImageIndex = -1;
+    }
+
+    public function saveProjectImage(): void
+    {
+        if ($this->projectImageIndex !== -1 && $this->projectImageUpload) {
+            $this->confirmProjectImage($this->projectImageIndex);
+            $this->closeProjectImageModal();
+        }
     }
 
     // ---- Tech stack categories ----
@@ -168,7 +206,13 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
 
     public function updatedCategoryIconUpload(): void
     {
-        $this->validate(['categoryIconUpload' => ['mimes:jpg,jpeg,png,gif,webp,svg', 'max:1024']]);
+        $this->validate(
+            ['categoryIconUpload' => ['mimes:jpg,jpeg,png,gif,webp,svg', 'max:1024']],
+            [
+                'categoryIconUpload.mimes' => 'Icons must be JPG, PNG, WebP or SVG.',
+                'categoryIconUpload.max'   => 'Icon must be smaller than 1MB.',
+            ]
+        );
     }
 
     public function confirmCategoryIcon(int $ci): void
@@ -191,28 +235,61 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
 
     public function updatedItemIconUpload(): void
     {
-        $this->validate(['itemIconUpload' => ['mimes:jpg,jpeg,png,gif,webp,svg', 'max:1024']]);
+        // Validation happens in confirmItemIcon
     }
 
     public function confirmItemIcon(int $ci, int $ji): void
     {
-        $this->validate(['itemIconUpload' => ['required', 'mimes:jpg,jpeg,png,gif,webp,svg', 'max:1024']]);
-        $path = $this->itemIconUpload->store('tech-icons', 'public');
-        $this->tech_stack[$ci]['items'][$ji]['icon']      = $path;
-        $this->tech_stack[$ci]['items'][$ji]['icon_type'] = 'image';
-        $this->itemIconUpload = null;
+        try {
+            $this->resetErrorBag();
+            $this->validate(['itemIconUpload' => ['required', 'image', 'max:2048']]);
+            $path = $this->itemIconUpload->store('tech-icons', 'public');
+            $this->tech_stack[$ci]['items'][$ji]['icon']      = $path;
+            $this->tech_stack[$ci]['items'][$ji]['icon_type'] = 'image';
+            $this->itemIconUpload = null;
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            // Silently fail - error shown in UI
+        }
         $this->itemIconUploadTarget = null;
+        $this->itemIconUploadCategory = -1;
     }
 
     public function cancelItemIcon(): void
     {
         $this->itemIconUpload = null;
         $this->itemIconUploadTarget = null;
+        $this->itemIconUploadCategory = -1;
     }
 
     public function openItemIconUpload(int $ci, int $ji): void
     {
         $this->itemIconUploadTarget = $ji;
+        $this->itemIconUploadCategory = $ci;
+        $this->showIconModal = true;
+    }
+
+    public function closeIconModal(): void
+    {
+        $this->showIconModal = false;
+        $this->itemIconUpload = null;
+        $this->itemIconUploadTarget = null;
+        $this->itemIconUploadCategory = -1;
+    }
+
+    public function saveItemIcon(): void
+    {
+        $this->validate(
+            ['itemIconUpload' => ['required', 'image', 'max:2048']],
+            [
+                'itemIconUpload.required' => 'Please select an icon first.',
+                'itemIconUpload.image'    => 'The file must be an image.',
+                'itemIconUpload.max'      => 'Icon size should be under 2MB.',
+            ]
+        );
+        $path = $this->itemIconUpload->store('tech-icons', 'public');
+        $this->tech_stack[$this->itemIconUploadCategory]['items'][$this->itemIconUploadTarget]['icon'] = $path;
+        $this->tech_stack[$this->itemIconUploadCategory]['items'][$this->itemIconUploadTarget]['icon_type'] = 'image';
+        $this->closeIconModal();
     }
 
     public function updatedTechStack($value, $key): void
@@ -258,7 +335,7 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
             'avatarUpload'        => ['nullable', 'image', 'max:2048'],
             'projectImageUpload'  => ['nullable', 'image', 'max:5120'],
             'categoryIconUpload'  => ['nullable', 'mimes:jpg,jpeg,png,gif,webp,svg', 'max:1024'],
-            'itemIconUpload'      => ['nullable', 'mimes:jpg,jpeg,png,gif,webp,svg', 'max:1024'],
+            'itemIconUpload'      => ['nullable', 'image', 'max:2048'],
         ]);
 
         $user = Auth::user();
@@ -423,7 +500,7 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
                                     @error('avatarUpload') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
                                 </div>
                             </div>
-                            <div wire:loading wire:target="avatarUpload" class="mt-2 text-xs text-brand-accent flex items-center gap-1.5">
+                            <div wire:loading.flex wire:target="avatarUpload" class="mt-2 text-xs text-brand-accent items-center gap-1.5">
                                 <i class="fas fa-circle-notch fa-spin text-[10px]"></i> Uploading…
                             </div>
                         </div>
@@ -645,22 +722,28 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
                                 $iImgSrc = ($iType === 'image' && !empty($iIcon))
                                     ? (str_starts_with($iIcon, 'http') ? $iIcon : asset('storage/' . $iIcon))
                                     : null;
+                                $isUploadingThis = $itemIconUploadCategory === $ci && $itemIconUploadTarget === $ji;
                                 @endphp
-                                <div class="inline-flex items-center gap-1 px-2 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-sm text-slate-700 dark:text-slate-300 group" wire:key="item-{{ $ci }}-{{ $ji }}">
-                                    {{-- Icon preview or upload button --}}
+                                <div class="inline-flex items-center gap-1 px-2 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-sm text-slate-700 dark:text-slate-300 group relative" wire:key="item-{{ $ci }}-{{ $ji }}">
+
+                                    {{-- Show uploaded image icon --}}
                                     @if($iImgSrc)
                                         <img src="{{ $iImgSrc }}" class="w-4 h-4 object-contain" alt="">
                                     @elseif(!empty($iIcon) && $iType === 'fa')
                                         <i class="{{ $iIcon }} text-xs text-brand-accent"></i>
                                     @endif
+
                                     <input wire:model="tech_stack.{{ $ci }}.items.{{ $ji }}.text" type="text"
                                            placeholder="Skill"
                                            class="bg-transparent outline-none w-20 text-sm placeholder-slate-400">
+
                                     {{-- Upload image button --}}
-                                    <label class="cursor-pointer flex items-center justify-center w-5 h-5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" title="Upload icon">
+                                    <button wire:click="openItemIconUpload({{ $ci }}, {{ $ji }})" type="button"
+                                            class="flex items-center justify-center w-5 h-5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                                            title="Upload icon">
                                         <i class="fas fa-image text-[10px] text-slate-400 hover:text-brand-accent"></i>
-                                        <input wire:model="itemIconUpload" wire:change="confirmItemIcon({{ $ci }}, {{ $ji }})" type="file" accept="image/*,.svg" class="sr-only">
-                                    </label>
+                                    </button>
+
                                     <input wire:model="tech_stack.{{ $ci }}.items.{{ $ji }}.icon" type="text"
                                            placeholder="fa-icon"
                                            class="w-16 bg-transparent outline-none text-xs placeholder-slate-400 font-mono">
@@ -668,6 +751,15 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
                                             class="w-5 h-5 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all">
                                         <i class="fas fa-times text-[10px]"></i>
                                     </button>
+
+                                    {{-- Error message (only for this item) --}}
+                                    @if($isUploadingThis)
+                                        @error('itemIconUpload')
+                                            <div class="absolute top-full left-0 mt-1 px-2 py-1 rounded-lg bg-red-500 text-white text-xs whitespace-nowrap z-10 shadow-lg">
+                                                <i class="fas fa-exclamation-circle mr-1"></i>{{ $message }}
+                                            </div>
+                                        @enderror
+                                    @endif
                                 </div>
                                 @empty
                                 @endforelse
@@ -805,18 +897,18 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
                                 @if($imgSrc)
                                 <div class="flex items-center gap-3">
                                     <img src="{{ $imgSrc }}" alt="Project image" class="h-24 rounded-xl object-cover border border-slate-200 dark:border-white/10">
-                                    <label class="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-dashed border-slate-300 dark:border-white/20 hover:border-brand-accent/50 transition-colors text-sm text-slate-500 dark:text-slate-400 hover:text-brand-accent">
+                                    <button type="button" wire:click="openProjectImageModal({{ $i }})"
+                                            class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-dashed border-slate-300 dark:border-white/20 hover:border-brand-accent/50 transition-colors text-sm text-slate-500 dark:text-slate-400 hover:text-brand-accent">
                                         <i class="fas fa-sync-alt text-xs"></i>
                                         <span>Change image</span>
-                                        <input wire:model="projectImageUpload" wire:change="confirmProjectImage({{ $i }})" type="file" accept="image/*" class="sr-only">
-                                    </label>
+                                    </button>
                                     <button wire:click="$set('projects.{{ $i }}.image', '')" type="button"
                                             class="px-3 py-2 rounded-xl text-xs font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors">
                                         <i class="fas fa-trash-alt mr-1"></i>Remove
                                     </button>
                                 </div>
                                 @else
-                                <label class="block cursor-pointer">
+                                <button type="button" wire:click="openProjectImageModal({{ $i }})" class="w-full text-left">
                                     <div class="flex items-center gap-3 px-4 py-3 rounded-xl border border-dashed border-brand-accent/40 hover:border-brand-accent transition-colors text-sm text-brand-accent">
                                         <i class="fas fa-cloud-upload-alt text-lg"></i>
                                         <div>
@@ -824,12 +916,8 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
                                             <span class="text-xs text-slate-400 ml-2">JPG, PNG, WebP · Max 5 MB</span>
                                         </div>
                                     </div>
-                                    <input wire:model="projectImageUpload" wire:change="confirmProjectImage({{ $i }})" type="file" accept="image/*" class="sr-only">
-                                </label>
+                                </button>
                                 @endif
-                                <div wire:loading wire:target="projectImageUpload" class="mt-2 text-xs text-brand-accent flex items-center gap-1.5">
-                                    <i class="fas fa-circle-notch fa-spin text-[10px]"></i> Uploading and saving…
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -908,6 +996,135 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
                 </div>
             </div>
 
+        </div>
+    </div>
+
+    {{-- Project Image Modal --}}
+    <div x-show="$wire.showProjectImageModal"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+         style="display: none;">
+
+        <div @click.away="$wire.closeProjectImageModal()"
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="opacity-0 scale-95 translate-y-4"
+             x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+             class="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden border border-slate-200 dark:border-white/10">
+
+            <div class="px-6 py-5 border-b border-slate-100 dark:border-white/5 flex items-center justify-between">
+                <h3 class="text-lg font-display font-bold text-slate-900 dark:text-white">Upload Project Image</h3>
+                <button @click="$wire.closeProjectImageModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="p-8">
+                <div class="mb-6">
+                    <label class="group relative flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-slate-200 dark:border-white/10 rounded-2xl cursor-pointer hover:border-brand-accent/50 hover:bg-slate-50 dark:hover:bg-white/5 transition-all overflow-hidden">
+                        @if($projectImageUpload)
+                            <img src="{{ $projectImageUpload->temporaryUrl() }}" class="absolute inset-0 w-full h-full object-cover">
+                            <div class="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <span class="text-white text-sm font-bold"><i class="fas fa-sync-alt mr-2"></i>Change image</span>
+                            </div>
+                        @else
+                            <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                                <div class="w-12 h-12 rounded-xl bg-brand-accent/10 flex items-center justify-center mb-3 text-brand-accent group-hover:scale-110 transition-transform">
+                                    <i class="fas fa-cloud-upload-alt text-xl"></i>
+                                </div>
+                                <p class="text-sm font-bold text-slate-700 dark:text-slate-300">Click to choose image</p>
+                                <p class="text-xs text-slate-400 mt-1">PNG, JPG, WebP up to 5MB</p>
+                            </div>
+                        @endif
+                        <input wire:model="projectImageUpload" type="file" class="hidden" accept="image/*" />
+
+                        {{-- Loader --}}
+                        <div wire:loading.flex wire:target="projectImageUpload" class="absolute inset-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm flex-col items-center justify-center">
+                            <i class="fas fa-circle-notch fa-spin text-2xl text-brand-accent mb-3"></i>
+                            <p class="text-xs font-bold text-slate-600 dark:text-slate-300">Uploading...</p>
+                        </div>
+                    </label>
+                    @error('projectImageUpload') <p class="text-xs text-red-500 mt-2 font-medium">{{ $message }}</p> @enderror
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <button @click="$wire.closeProjectImageModal()" class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                        Cancel
+                    </button>
+                    <button wire:click="saveProjectImage"
+                            {{ !$projectImageUpload ? 'disabled' : '' }}
+                            class="flex-1 px-4 py-2.5 rounded-xl bg-brand-accent text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md shadow-brand-accent/20">
+                        <span wire:loading.remove wire:target="saveProjectImage">Save Image</span>
+                        <span wire:loading wire:target="saveProjectImage">Saving...</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Skill Icon Modal (Reused) --}}
+    <div x-show="$wire.showIconModal"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+         style="display: none;">
+
+        <div @click.away="$wire.closeIconModal()"
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="opacity-0 scale-95 translate-y-4"
+             x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+             class="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden border border-slate-200 dark:border-white/10">
+
+            <div class="px-6 py-5 border-b border-slate-100 dark:border-white/5 flex items-center justify-between">
+                <h3 class="text-lg font-display font-bold text-slate-900 dark:text-white">Upload Skill Icon</h3>
+                <button @click="$wire.closeIconModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="p-8">
+                <div class="mb-6">
+                    <label class="group relative flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-200 dark:border-white/10 rounded-2xl cursor-pointer hover:border-brand-accent/50 hover:bg-slate-50 dark:hover:bg-white/5 transition-all overflow-hidden">
+                        @if($itemIconUpload)
+                            <img src="{{ $itemIconUpload->temporaryUrl() }}" class="w-16 h-16 object-contain">
+                            <div class="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <span class="text-white text-xs font-bold">Change</span>
+                            </div>
+                        @else
+                            <div class="flex flex-col items-center justify-center">
+                                <i class="fas fa-image text-2xl text-slate-300 dark:text-slate-600 mb-2 group-hover:scale-110 transition-transform"></i>
+                                <p class="text-xs font-bold text-slate-700 dark:text-slate-300">Click to upload icon</p>
+                            </div>
+                        @endif
+                        <input wire:model="itemIconUpload" type="file" class="hidden" accept="image/*" />
+
+                        {{-- Loader --}}
+                        <div wire:loading.flex wire:target="itemIconUpload" class="absolute inset-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm items-center justify-center">
+                            <i class="fas fa-circle-notch fa-spin text-brand-accent"></i>
+                        </div>
+                    </label>
+                    @error('itemIconUpload') <p class="text-xs text-red-500 mt-2 font-medium">{{ $message }}</p> @enderror
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <button @click="$wire.closeIconModal()" class="flex-1 px-4 py-2 rounded-xl border border-slate-200 dark:border-white/10 text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                        Cancel
+                    </button>
+                    <button wire:click="saveItemIcon"
+                            {{ !$itemIconUpload ? 'disabled' : '' }}
+                            class="flex-1 px-4 py-2 rounded-xl bg-brand-accent text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md shadow-brand-accent/20">
+                        Save Icon
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
