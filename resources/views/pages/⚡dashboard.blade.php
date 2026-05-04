@@ -153,7 +153,7 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
 
     public function addCategoryItem(int $i): void
     {
-        $this->tech_stack[$i]['items'][] = ['text' => '', 'icon_type' => 'fa', 'icon' => ''];
+        $this->tech_stack[$i]['items'][] = ['text' => ''];
     }
 
     public function removeCategoryItem(int $i, int $j): void
@@ -511,7 +511,7 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
                             <h2 class="text-lg font-display font-bold text-slate-900 dark:text-white flex items-center gap-2">
                                 <i class="fas fa-code text-brand-accent text-base"></i> Tech Stack
                             </h2>
-                            <p class="text-xs text-slate-400 mt-0.5">Each category becomes a card on your portfolio. Icons can be Font Awesome classes or uploaded images.</p>
+                            <p class="text-xs text-slate-400 mt-0.5">Group your skills into categories. Type your tools — icons are optional.</p>
                         </div>
                         <button wire:click="addCategory" type="button"
                                 class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-accent text-white text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm shadow-brand-accent/20 flex-shrink-0">
@@ -546,7 +546,7 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
                             </div>
                             {{-- Name input --}}
                             <input wire:model="tech_stack.{{ $ci }}.name" type="text"
-                                   placeholder="Category name (e.g. Backend)"
+                                   placeholder="Category name (e.g. Backend, Frontend, AI)"
                                    class="flex-1 bg-transparent font-bold text-slate-900 dark:text-white text-sm outline-none placeholder-slate-400 min-w-0">
                             {{-- Color picker --}}
                             <select wire:model="tech_stack.{{ $ci }}.color"
@@ -555,6 +555,20 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
                                 <option value="{{ $val }}">{{ $label }}</option>
                                 @endforeach
                             </select>
+                            {{-- Icon help tooltip --}}
+                            <div x-data="{ tooltip: false }" class="relative flex-shrink-0">
+                                <button type="button" @click="tooltip = !tooltip" class="w-7 h-7 rounded-full flex items-center justify-center text-slate-300 dark:text-slate-600 hover:text-brand-accent hover:bg-brand-accent/10 transition-all">
+                                    <i class="fas fa-question-circle text-xs"></i>
+                                </button>
+                                <div x-show="tooltip" @click.away="tooltip = false" x-transition class="absolute right-0 top-full mt-1 z-10 w-64 p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 shadow-xl text-xs text-slate-600 dark:text-slate-300">
+                                    <p class="font-semibold mb-1">Want an icon?</p>
+                                    <p class="text-slate-500 dark:text-slate-400 mb-2">Choose "Font Awesome" and type a class like:</p>
+                                    <code class="block bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded text-[10px]">fas fa-brain</code>
+                                    <code class="block bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded text-[10px] mt-0.5">fab fa-laravel</code>
+                                    <code class="block bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded text-[10px] mt-0.5">fab fa-python</code>
+                                    <p class="text-slate-500 dark:text-slate-400 mt-2">Find icons at <a href="https://fontawesome.com/search" target="_blank" class="text-brand-accent hover:underline">fontawesome.com</a></p>
+                                </div>
+                            </div>
                             {{-- Delete --}}
                             <button wire:click="removeCategory({{ $ci }})" type="button"
                                     class="w-7 h-7 rounded-full flex items-center justify-center text-slate-300 dark:text-slate-600 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all flex-shrink-0">
@@ -562,207 +576,96 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
                             </button>
                         </div>
 
-                        {{-- ── Category icon picker ── --}}
+                        {{-- ── Category icon (simplified) ── --}}
                         <div class="px-4 py-3 border-b border-slate-100 dark:border-white/5 bg-slate-50/60 dark:bg-slate-900/20">
                             <div class="flex items-center gap-2 flex-wrap">
                                 <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex-shrink-0">Icon:</span>
 
-                                {{-- Toggle FA / Image --}}
+                                {{-- Toggle FA / Image / None ──}}
                                 <div class="flex rounded-lg overflow-hidden border border-slate-200 dark:border-white/10 text-[11px] font-bold flex-shrink-0">
-                                    <button type="button" wire:click="$set('tech_stack.{{ $ci }}.icon_type', 'fa')"
-                                            class="px-2.5 py-1.5 transition-all {{ $catType === 'fa' ? 'bg-brand-accent text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
-                                        <i class="fas fa-font mr-1"></i>Font Awesome
+                                    <button type="button" wire:click="$set('tech_stack.{{ $ci }}.icon_type', 'fa'); $set('tech_stack.{{ $ci }}.icon', 'fas fa-code')"
+                                            class="px-3 py-1.5 transition-all {{ $catType === 'fa' ? 'bg-brand-accent text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
+                                        <i class="fas fa-font mr-1"></i>Icon
                                     </button>
                                     <button type="button" wire:click="$set('tech_stack.{{ $ci }}.icon_type', 'image')"
-                                            class="px-2.5 py-1.5 border-l border-slate-200 dark:border-white/10 transition-all {{ $catType === 'image' ? 'bg-brand-accent text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
+                                            class="px-3 py-1.5 border-l border-slate-200 dark:border-white/10 transition-all {{ $catType === 'image' ? 'bg-brand-accent text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
                                         <i class="fas fa-image mr-1"></i>Upload
+                                    </button>
+                                    <button type="button" wire:click="$set('tech_stack.{{ $ci }}.icon_type', 'none'); $set('tech_stack.{{ $ci }}.icon', '')"
+                                            class="px-3 py-1.5 border-l border-slate-200 dark:border-white/10 transition-all {{ $catType === 'none' ? 'bg-brand-accent text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
+                                        None
                                     </button>
                                 </div>
 
                                 @if($catType === 'fa')
-                                {{-- FA class input --}}
-                                <input wire:model="tech_stack.{{ $ci }}.icon" type="text"
-                                       placeholder="fas fa-code"
-                                       class="flex-1 min-w-[160px] font-mono text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-1.5 outline-none focus:border-brand-accent text-slate-700 dark:text-slate-200 placeholder-slate-400">
-                                <span class="text-[10px] text-slate-400 hidden md:inline">
-                                    e.g. <code class="font-mono">fas fa-brain</code> · <code class="font-mono">fab fa-laravel</code> · <code class="font-mono">fab fa-python</code>
-                                </span>
-                                @else
-                                {{-- Image upload --}}
-                                @if($catImgSrc)
-                                <div class="flex items-center gap-2">
-                                    <img src="{{ $catImgSrc }}" class="w-8 h-8 object-contain rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 p-0.5">
-                                    <button type="button"
-                                            wire:click="$set('tech_stack.{{ $ci }}.icon', ''); $set('tech_stack.{{ $ci }}.icon_type', 'fa')"
-                                            class="text-[11px] text-red-500 hover:underline font-medium">Remove</button>
+                                <div class="flex items-center gap-2 flex-1">
+                                    <input wire:model="tech_stack.{{ $ci }}.icon" type="text"
+                                           placeholder="Type icon class, e.g. fas fa-brain"
+                                           class="flex-1 min-w-[160px] font-mono text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-1.5 outline-none focus:border-brand-accent text-slate-700 dark:text-slate-200 placeholder-slate-400">
+                                    <a href="https://fontawesome.com/search" target="_blank" class="text-[10px] text-brand-accent hover:underline flex-shrink-0">Browse icons</a>
                                 </div>
-                                @elseif($categoryIconTarget === $ci)
-                                    @if($categoryIconUpload)
+                                @elseif($catType === 'image')
+                                    @if($catImgSrc)
                                     <div class="flex items-center gap-2">
-                                        <img src="{{ $categoryIconUpload->temporaryUrl() }}" class="w-8 h-8 object-contain rounded-lg border border-brand-accent/30 bg-white dark:bg-slate-800 p-0.5">
-                                        <button wire:click="confirmCategoryIcon({{ $ci }})" type="button"
-                                                class="px-2.5 py-1 rounded-lg bg-emerald-500 text-white text-[11px] font-bold hover:bg-emerald-600 transition-colors">
-                                            <i class="fas fa-check mr-0.5"></i> Use
-                                        </button>
-                                        <button wire:click="cancelCategoryIcon" type="button" class="text-[11px] text-slate-400 hover:text-slate-600">Cancel</button>
+                                        <img src="{{ $catImgSrc }}" class="w-8 h-8 object-contain rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 p-0.5">
+                                        <button type="button"
+                                                wire:click="$set('tech_stack.{{ $ci }}.icon', ''); $set('tech_stack.{{ $ci }}.icon_type', 'none')"
+                                                class="text-[11px] text-red-500 hover:underline font-medium">Remove</button>
                                     </div>
                                     @else
                                     <label class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-brand-accent/40 hover:border-brand-accent text-[11px] text-brand-accent font-semibold transition-colors">
-                                        <i class="fas fa-cloud-upload-alt"></i> Choose file
+                                        <i class="fas fa-upload"></i> Upload icon
                                         <input wire:model="categoryIconUpload" type="file" accept="image/*,.svg" class="sr-only">
                                     </label>
-                                    <button wire:click="cancelCategoryIcon" type="button" class="text-[11px] text-slate-400 hover:text-slate-600 ml-1">Cancel</button>
                                     <div wire:loading wire:target="categoryIconUpload" class="text-[11px] text-brand-accent flex items-center gap-1">
-                                        <i class="fas fa-circle-notch fa-spin"></i> Uploading…
+                                        <i class="fas fa-circle-notch fa-spin"></i>
                                     </div>
                                     @endif
-                                @else
-                                <button wire:click="$set('categoryIconTarget', {{ $ci }})" type="button"
-                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-slate-300 dark:border-white/20 hover:border-brand-accent/50 text-[11px] text-slate-500 dark:text-slate-400 hover:text-brand-accent font-semibold transition-colors">
-                                    <i class="fas fa-upload"></i> Choose image / SVG
-                                </button>
-                                @endif
                                 @endif
                             </div>
                         </div>
 
-                        {{-- ── Items list ── --}}
+                        {{-- ── Items list (simplified) ── --}}
                         <div class="px-4 pt-3 pb-4">
                             <div class="flex items-center justify-between mb-2.5">
-                                <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Items</span>
-                                <span class="text-[11px] text-slate-400">{{ count($cat['items'] ?? []) }} item{{ count($cat['items'] ?? []) !== 1 ? 's' : '' }}</span>
+                                <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Skills in this category</span>
+                                <span class="text-[11px] text-slate-400">{{ count($cat['items'] ?? []) }} skill{{ count($cat['items'] ?? []) !== 1 ? 's' : '' }}</span>
                             </div>
 
-                            <div class="space-y-2 mb-3">
+                            {{-- Items as pills/tags --}}
+                            <div class="flex flex-wrap gap-2 mb-3">
                                 @forelse($cat['items'] ?? [] as $ji => $item)
                                 @php
-                                $iText    = is_array($item) ? ($item['text'] ?? '') : $item;
-                                $iType    = is_array($item) ? ($item['icon_type'] ?? 'fa') : 'fa';
-                                $iIcon    = is_array($item) ? ($item['icon'] ?? '') : '';
-                                $iImgSrc  = ($iType === 'image' && !empty($iIcon))
-                                    ? (str_starts_with($iIcon, 'http') ? $iIcon : asset('storage/' . $iIcon))
-                                    : null;
+                                $iText = is_array($item) ? ($item['text'] ?? '') : $item;
                                 @endphp
-                                <div class="rounded-xl border border-slate-100 dark:border-white/5 bg-white/50 dark:bg-slate-900/30 overflow-hidden group" wire:key="item-{{ $ci }}-{{ $ji }}">
-
-                                    {{-- Main row --}}
-                                    <div class="flex items-center gap-2.5 px-3 py-2">
-
-                                        {{-- Icon preview --}}
-                                        <div class="flex-shrink-0 w-8 h-8 rounded-lg {{ $iconCls }} flex items-center justify-center text-sm select-none">
-                                            @if($iImgSrc)
-                                                <img src="{{ $iImgSrc }}" class="w-5 h-5 object-contain" alt="">
-                                            @elseif($iType === 'fa' && !empty($iIcon))
-                                                <i class="{{ $iIcon }}"></i>
-                                            @else
-                                                <span class="text-[10px] font-bold opacity-30">—</span>
-                                            @endif
-                                        </div>
-
-                                        {{-- Type selector --}}
-                                        <select wire:model.live="tech_stack.{{ $ci }}.items.{{ $ji }}.icon_type"
-                                                class="flex-shrink-0 text-[11px] bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-lg px-2 py-1.5 text-slate-500 dark:text-slate-400 outline-none cursor-pointer">
-                                            <option value="fa">Font Awesome</option>
-                                            <option value="image">Image / SVG</option>
-                                            <option value="none">No icon</option>
-                                        </select>
-
-                                        @if($iType === 'fa')
-                                        {{-- FA class input --}}
-                                        <input wire:model="tech_stack.{{ $ci }}.items.{{ $ji }}.icon" type="text"
-                                               placeholder="fab fa-laravel"
-                                               class="w-32 font-mono text-[12px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 outline-none focus:border-brand-accent text-slate-600 dark:text-slate-300 placeholder-slate-300 flex-shrink-0">
-                                        @endif
-
-                                        {{-- Item label --}}
-                                        <input wire:model="tech_stack.{{ $ci }}.items.{{ $ji }}.text" type="text"
-                                               placeholder="e.g. Laravel"
-                                               class="flex-1 min-w-0 text-sm bg-transparent border-b border-slate-200 dark:border-white/10 focus:border-brand-accent outline-none py-1 text-slate-700 dark:text-slate-200 placeholder-slate-300 dark:placeholder-slate-600 transition-colors">
-
-                                        {{-- Delete --}}
-                                        <button wire:click="removeCategoryItem({{ $ci }}, {{ $ji }})" type="button"
-                                                class="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-slate-300 dark:text-slate-600 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all">
-                                            <i class="fas fa-times text-xs"></i>
-                                        </button>
-                                    </div>
-
-                                    {{-- Image upload panel (shown when type = image) --}}
-                                    @if($iType === 'image')
-                                    <div class="mx-3 mb-3 rounded-xl border border-dashed border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800/40 p-3">
-                                        @if($iImgSrc)
-                                            {{-- Confirmed image --}}
-                                            <div class="flex items-center gap-3">
-                                                <img src="{{ $iImgSrc }}" alt="icon" class="w-10 h-10 object-contain rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 p-1 flex-shrink-0">
-                                                <div class="flex-1 min-w-0">
-                                                    <p class="text-xs font-semibold text-slate-600 dark:text-slate-300">Icon uploaded</p>
-                                                    <p class="text-[11px] text-slate-400 truncate">{{ basename($iIcon) }}</p>
-                                                </div>
-                                                <button type="button"
-                                                        wire:click="$set('tech_stack.{{ $ci }}.items.{{ $ji }}.icon', '')"
-                                                        class="flex-shrink-0 px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-500/10 text-red-500 text-xs font-semibold hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors">
-                                                    <i class="fas fa-trash-alt mr-1 text-[10px]"></i>Remove
-                                                </button>
-                                            </div>
-                                        @elseif($itemIconTarget[0] === $ci && $itemIconTarget[1] === $ji)
-                                            @if($itemIconUpload)
-                                                {{-- Preview before confirm --}}
-                                                <div class="flex items-center gap-3">
-                                                    <img src="{{ $itemIconUpload->temporaryUrl() }}" alt="preview" class="w-10 h-10 object-contain rounded-lg border border-brand-accent/30 bg-white dark:bg-slate-800 p-1 flex-shrink-0">
-                                                    <div class="flex-1">
-                                                        <p class="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Looks good?</p>
-                                                        <div class="flex items-center gap-2">
-                                                            <button wire:click="confirmItemIcon({{ $ci }}, {{ $ji }})" type="button"
-                                                                    class="px-3 py-1.5 rounded-lg bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 transition-colors">
-                                                                <i class="fas fa-check mr-1"></i>Use this icon
-                                                            </button>
-                                                            <button wire:click="cancelItemIcon" type="button"
-                                                                    class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors">
-                                                                Cancel
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            @else
-                                                {{-- File picker --}}
-                                                <label class="flex flex-col items-center gap-1.5 cursor-pointer py-2">
-                                                    <div class="w-9 h-9 rounded-xl bg-brand-accent/10 dark:bg-brand-accent/20 flex items-center justify-center text-brand-accent">
-                                                        <i class="fas fa-cloud-upload-alt text-base"></i>
-                                                    </div>
-                                                    <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">Click to choose file</span>
-                                                    <span class="text-[11px] text-slate-400">PNG, JPG, SVG · max 1 MB</span>
-                                                    <input wire:model="itemIconUpload" type="file" accept="image/*,.svg" class="sr-only">
-                                                </label>
-                                                <div wire:loading wire:target="itemIconUpload" class="flex items-center justify-center gap-2 py-1 text-xs text-brand-accent">
-                                                    <i class="fas fa-circle-notch fa-spin"></i> Uploading…
-                                                </div>
-                                                <div class="flex justify-center mt-1">
-                                                    <button wire:click="cancelItemIcon" type="button"
-                                                            class="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
-                                                        Cancel
-                                                    </button>
-                                                </div>
-                                            @endif
-                                        @else
-                                            {{-- Idle: one click to activate then file picker appears --}}
-                                            <button wire:click="openItemIconUpload({{ $ci }}, {{ $ji }})" type="button"
-                                                    class="w-full flex items-center justify-center gap-2 py-3 text-sm font-semibold text-brand-accent hover:text-blue-700 transition-colors">
-                                                <i class="fas fa-cloud-upload-alt text-base"></i>
-                                                Click to choose icon
-                                            </button>
-                                        @endif
-                                    </div>
-                                    @endif
-
+                                <div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-sm text-slate-700 dark:text-slate-300 group" wire:key="item-{{ $ci }}-{{ $ji }}">
+                                    <input wire:model="tech_stack.{{ $ci }}.items.{{ $ji }}.text" type="text"
+                                           placeholder="Skill name"
+                                           class="bg-transparent outline-none w-24 text-sm placeholder-slate-400">
+                                    <button wire:click="removeCategoryItem({{ $ci }}, {{ $ji }})" type="button"
+                                            class="w-5 h-5 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all">
+                                        <i class="fas fa-times text-[10px]"></i>
+                                    </button>
                                 </div>
                                 @empty
-                                <p class="text-xs text-slate-400 italic py-2">No items yet — add one below.</p>
                                 @endforelse
                             </div>
 
-                            <button wire:click="addCategoryItem({{ $ci }})" type="button"
-                                    class="inline-flex items-center gap-1.5 text-xs text-brand-accent font-semibold hover:bg-brand-accent/8 px-2 py-1 rounded-lg transition-colors">
-                                <i class="fas fa-plus text-[10px]"></i> Add item
-                            </button>
+                            {{-- Quick add input --}}
+                            <div class="flex items-center gap-2">
+                                <input wire:keydown.enter.prevent="addCategoryItem({{ $ci }}); $dispatch('input-focus', { target: 'newItem-{{ $ci }}' })"
+                                       wire:keydown.comma.prevent="addCategoryItem({{ $ci }}); $dispatch('input-focus', { target: 'newItem-{{ $ci }}' })"
+                                       x-data="{}"
+                                       x-on:input-focus.window="if ($event.detail.target === 'newItem-{{ $ci }}') $el.focus()"
+                                       id="newItem-{{ $ci }}"
+                                       type="text" placeholder="Type a skill and press Enter (e.g. Laravel, React, AWS)"
+                                       class="flex-1 min-w-0 text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 outline-none focus:border-brand-accent text-slate-700 dark:text-slate-200 placeholder-slate-400">
+                                <button wire:click="addCategoryItem({{ $ci }})" type="button"
+                                        class="px-4 py-2 rounded-lg bg-brand-accent text-white text-sm font-semibold hover:bg-blue-700 transition-colors">
+                                    <i class="fas fa-plus text-xs"></i> Add
+                                </button>
+                            </div>
+                            <p class="text-[11px] text-slate-400 mt-1.5">Tip: Press Enter or comma to add quickly</p>
                         </div>
                     </div>
                     @empty
@@ -771,7 +674,7 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
                             <i class="fas fa-layer-group text-2xl text-slate-300 dark:text-slate-600"></i>
                         </div>
                         <p class="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-1">No categories yet</p>
-                        <p class="text-xs text-slate-400 mb-4">Group your skills into categories like Backend, AI, Frontend…</p>
+                        <p class="text-xs text-slate-400 mb-4">Example: "Backend", "AI/ML", "Frontend" — each can have many skills</p>
                         <button wire:click="addCategory" type="button"
                                 class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-accent text-white text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm">
                             <i class="fas fa-plus text-xs"></i> Add first category
@@ -879,53 +782,33 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
                                 @endphp
 
                                 @if($imgSrc)
-                                <div class="relative inline-block mb-2">
-                                    <img src="{{ $imgSrc }}" alt="Project image" class="h-28 rounded-xl object-cover border border-slate-200 dark:border-white/10">
+                                <div class="flex items-center gap-3">
+                                    <img src="{{ $imgSrc }}" alt="Project image" class="h-24 rounded-xl object-cover border border-slate-200 dark:border-white/10">
+                                    <label class="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-dashed border-slate-300 dark:border-white/20 hover:border-brand-accent/50 transition-colors text-sm text-slate-500 dark:text-slate-400 hover:text-brand-accent">
+                                        <i class="fas fa-sync-alt text-xs"></i>
+                                        <span>Change image</span>
+                                        <input wire:model="projectImageUpload" wire:change="confirmProjectImage({{ $i }})" type="file" accept="image/*" class="sr-only">
+                                    </label>
                                     <button wire:click="$set('projects.{{ $i }}.image', '')" type="button"
-                                            class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white text-xs flex items-center justify-center hover:bg-red-600 transition-colors shadow">
-                                        <i class="fas fa-times text-[9px]"></i>
+                                            class="px-3 py-2 rounded-xl text-xs font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors">
+                                        <i class="fas fa-trash-alt mr-1"></i>Remove
                                     </button>
                                 </div>
-                                @elseif($projectImageIndex === $i)
-                                    @if($projectImageUpload)
-                                    <div class="space-y-2">
-                                        <img src="{{ $projectImageUpload->temporaryUrl() }}" alt="Preview" class="h-28 rounded-xl object-cover border border-brand-accent/30">
-                                        <div class="flex items-center gap-2">
-                                            <button wire:click="confirmProjectImage({{ $i }})" type="button"
-                                                    class="px-3 py-1.5 rounded-lg bg-emerald-500 text-white text-xs font-semibold hover:bg-emerald-600 transition-colors">
-                                                <i class="fas fa-check mr-1"></i> Use this image
-                                            </button>
-                                            <button wire:click="cancelProjectImage" type="button"
-                                                    class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors">
-                                                Cancel
-                                            </button>
-                                        </div>
-                                        <div wire:loading wire:target="confirmProjectImage" class="text-xs text-brand-accent flex items-center gap-1">
-                                            <i class="fas fa-circle-notch fa-spin text-[10px]"></i> Saving…
-                                        </div>
-                                    </div>
-                                    @else
-                                    <label class="block cursor-pointer">
-                                        <div class="flex items-center gap-2 px-4 py-3 rounded-xl border border-dashed border-brand-accent/40 hover:border-brand-accent transition-colors text-sm text-brand-accent">
-                                            <i class="fas fa-cloud-upload-alt"></i>
-                                            <span>Choose image file</span>
-                                        </div>
-                                        <input wire:model="projectImageUpload" type="file" accept="image/*" class="sr-only">
-                                    </label>
-                                    <div wire:loading wire:target="projectImageUpload" class="mt-1 text-xs text-brand-accent flex items-center gap-1">
-                                        <i class="fas fa-circle-notch fa-spin text-[10px]"></i> Uploading…
-                                    </div>
-                                    <button wire:click="cancelProjectImage" type="button" class="mt-1 text-xs text-slate-400 hover:text-slate-600 transition-colors">
-                                        ← Cancel
-                                    </button>
-                                    @endif
                                 @else
-                                <button wire:click="$set('projectImageIndex', {{ $i }})" type="button"
-                                        class="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-slate-300 dark:border-white/20 hover:border-brand-accent/50 transition-colors text-sm text-slate-500 dark:text-slate-400 hover:text-brand-accent">
-                                    <i class="fas fa-image text-sm"></i>
-                                    Upload project image
-                                </button>
+                                <label class="block cursor-pointer">
+                                    <div class="flex items-center gap-3 px-4 py-3 rounded-xl border border-dashed border-brand-accent/40 hover:border-brand-accent transition-colors text-sm text-brand-accent">
+                                        <i class="fas fa-cloud-upload-alt text-lg"></i>
+                                        <div>
+                                            <span class="font-medium">Click to upload project image</span>
+                                            <span class="text-xs text-slate-400 ml-2">JPG, PNG, WebP · Max 5 MB</span>
+                                        </div>
+                                    </div>
+                                    <input wire:model="projectImageUpload" wire:change="confirmProjectImage({{ $i }})" type="file" accept="image/*" class="sr-only">
+                                </label>
                                 @endif
+                                <div wire:loading wire:target="projectImageUpload" class="mt-2 text-xs text-brand-accent flex items-center gap-1.5">
+                                    <i class="fas fa-circle-notch fa-spin text-[10px]"></i> Uploading and saving…
+                                </div>
                             </div>
                         </div>
                     </div>
