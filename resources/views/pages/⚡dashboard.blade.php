@@ -641,14 +641,26 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
                                 @php
                                 $iText = is_array($item) ? ($item['text'] ?? '') : $item;
                                 $iIcon = is_array($item) ? ($item['icon'] ?? '') : '';
+                                $iType = is_array($item) ? ($item['icon_type'] ?? 'fa') : 'fa';
+                                $iImgSrc = ($iType === 'image' && !empty($iIcon))
+                                    ? (str_starts_with($iIcon, 'http') ? $iIcon : asset('storage/' . $iIcon))
+                                    : null;
                                 @endphp
-                                <div class="inline-flex items-center gap-1.5 px-2 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-sm text-slate-700 dark:text-slate-300 group" wire:key="item-{{ $ci }}-{{ $ji }}">
-                                    @if(!empty($iIcon))
+                                <div class="inline-flex items-center gap-1 px-2 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-sm text-slate-700 dark:text-slate-300 group" wire:key="item-{{ $ci }}-{{ $ji }}">
+                                    {{-- Icon preview or upload button --}}
+                                    @if($iImgSrc)
+                                        <img src="{{ $iImgSrc }}" class="w-4 h-4 object-contain" alt="">
+                                    @elseif(!empty($iIcon) && $iType === 'fa')
                                         <i class="{{ $iIcon }} text-xs text-brand-accent"></i>
                                     @endif
                                     <input wire:model="tech_stack.{{ $ci }}.items.{{ $ji }}.text" type="text"
                                            placeholder="Skill"
                                            class="bg-transparent outline-none w-20 text-sm placeholder-slate-400">
+                                    {{-- Upload image button --}}
+                                    <label class="cursor-pointer flex items-center justify-center w-5 h-5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" title="Upload icon">
+                                        <i class="fas fa-image text-[10px] text-slate-400 hover:text-brand-accent"></i>
+                                        <input wire:model="itemIconUpload" wire:change="confirmItemIcon({{ $ci }}, {{ $ji }})" type="file" accept="image/*,.svg" class="sr-only">
+                                    </label>
                                     <input wire:model="tech_stack.{{ $ci }}.items.{{ $ji }}.icon" type="text"
                                            placeholder="fa-icon"
                                            class="w-16 bg-transparent outline-none text-xs placeholder-slate-400 font-mono">
@@ -674,7 +686,7 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
                                     <i class="fas fa-plus text-xs"></i> Add
                                 </button>
                             </div>
-                            <p class="text-[11px] text-slate-400 mt-1.5">Optional: add icon class like <code class="font-mono">fab fa-laravel</code> in the icon field</p>
+                            <p class="text-[11px] text-slate-400 mt-1.5">Click <i class="fas fa-image text-[10px]"></i> to upload an icon image (PNG, SVG, WebP)</p>
                         </div>
                     </div>
                     @empty
