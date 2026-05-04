@@ -31,7 +31,7 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
     public $categoryIconUpload  = null;
     public int $categoryIconTarget = -1;
     public $itemIconUpload      = null;
-    public array $itemIconTarget = [-1, -1];
+    public ?int $itemIconUploadTarget = null;
 
     // Stats
     public int $stat_startups = 0;
@@ -201,18 +201,18 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
         $this->tech_stack[$ci]['items'][$ji]['icon']      = $path;
         $this->tech_stack[$ci]['items'][$ji]['icon_type'] = 'image';
         $this->itemIconUpload = null;
-        $this->itemIconTarget = [-1, -1];
+        $this->itemIconUploadTarget = null;
     }
 
     public function cancelItemIcon(): void
     {
         $this->itemIconUpload = null;
-        $this->itemIconTarget = [-1, -1];
+        $this->itemIconUploadTarget = null;
     }
 
     public function openItemIconUpload(int $ci, int $ji): void
     {
-        $this->itemIconTarget = [$ci, $ji];
+        $this->itemIconUploadTarget = $ji;
     }
 
     public function updatedTechStack($value, $key): void
@@ -221,7 +221,7 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
         if ($value === 'image' && str_ends_with((string)$key, '.icon_type')) {
             $parts = explode('.', (string)$key);
             if (count($parts) === 4 && $parts[1] === 'items') {
-                $this->itemIconTarget = [(int)$parts[0], (int)$parts[2]];
+                $this->itemIconUploadTarget = (int)$parts[2];
             }
         }
     }
