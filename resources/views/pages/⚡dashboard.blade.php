@@ -40,6 +40,7 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
 
     // Tech stack — categorized: [['name'=>'', 'icon'=>'', 'color'=>'', 'items'=>[]]]
     public array $tech_stack = [];
+    public string $newSkillText = '';
 
     // Experience
     public array $experience = [];
@@ -153,7 +154,9 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
 
     public function addCategoryItem(int $i): void
     {
-        $this->tech_stack[$i]['items'][] = ['text' => ''];
+        $text = $this->newSkillText ?? '';
+        $this->tech_stack[$i]['items'][] = ['text' => trim($text), 'icon' => ''];
+        $this->newSkillText = '';
     }
 
     public function removeCategoryItem(int $i, int $j): void
@@ -637,11 +640,18 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
                                 @forelse($cat['items'] ?? [] as $ji => $item)
                                 @php
                                 $iText = is_array($item) ? ($item['text'] ?? '') : $item;
+                                $iIcon = is_array($item) ? ($item['icon'] ?? '') : '';
                                 @endphp
-                                <div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-sm text-slate-700 dark:text-slate-300 group" wire:key="item-{{ $ci }}-{{ $ji }}">
+                                <div class="inline-flex items-center gap-1.5 px-2 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-sm text-slate-700 dark:text-slate-300 group" wire:key="item-{{ $ci }}-{{ $ji }}">
+                                    @if(!empty($iIcon))
+                                        <i class="{{ $iIcon }} text-xs text-brand-accent"></i>
+                                    @endif
                                     <input wire:model="tech_stack.{{ $ci }}.items.{{ $ji }}.text" type="text"
-                                           placeholder="Skill name"
-                                           class="bg-transparent outline-none w-24 text-sm placeholder-slate-400">
+                                           placeholder="Skill"
+                                           class="bg-transparent outline-none w-20 text-sm placeholder-slate-400">
+                                    <input wire:model="tech_stack.{{ $ci }}.items.{{ $ji }}.icon" type="text"
+                                           placeholder="fa-icon"
+                                           class="w-16 bg-transparent outline-none text-xs placeholder-slate-400 font-mono">
                                     <button wire:click="removeCategoryItem({{ $ci }}, {{ $ji }})" type="button"
                                             class="w-5 h-5 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all">
                                         <i class="fas fa-times text-[10px]"></i>
@@ -653,19 +663,18 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
 
                             {{-- Quick add input --}}
                             <div class="flex items-center gap-2">
-                                <input wire:keydown.enter.prevent="addCategoryItem({{ $ci }}); $dispatch('input-focus', { target: 'newItem-{{ $ci }}' })"
-                                       wire:keydown.comma.prevent="addCategoryItem({{ $ci }}); $dispatch('input-focus', { target: 'newItem-{{ $ci }}' })"
-                                       x-data="{}"
-                                       x-on:input-focus.window="if ($event.detail.target === 'newItem-{{ $ci }}') $el.focus()"
+                                <input wire:keydown.enter.prevent="$set('newSkillText', $event.target.value); addCategoryItem({{ $ci }}); $nextTick(() => { document.getElementById('newItem-{{ $ci }}').value = ''; document.getElementById('newItem-{{ $ci }}').focus(); })"
+                                       wire:keydown.comma.prevent="$set('newSkillText', $event.target.value); addCategoryItem({{ $ci }}); $nextTick(() => { document.getElementById('newItem-{{ $ci }}').value = ''; document.getElementById('newItem-{{ $ci }}').focus(); })"
+                                       wire:model.lazy="newSkillText"
                                        id="newItem-{{ $ci }}"
-                                       type="text" placeholder="Type a skill and press Enter (e.g. Laravel, React, AWS)"
+                                       type="text" placeholder="Type skill name, press Enter"
                                        class="flex-1 min-w-0 text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 outline-none focus:border-brand-accent text-slate-700 dark:text-slate-200 placeholder-slate-400">
                                 <button wire:click="addCategoryItem({{ $ci }})" type="button"
                                         class="px-4 py-2 rounded-lg bg-brand-accent text-white text-sm font-semibold hover:bg-blue-700 transition-colors">
                                     <i class="fas fa-plus text-xs"></i> Add
                                 </button>
                             </div>
-                            <p class="text-[11px] text-slate-400 mt-1.5">Tip: Press Enter or comma to add quickly</p>
+                            <p class="text-[11px] text-slate-400 mt-1.5">Optional: add icon class like <code class="font-mono">fab fa-laravel</code> in the icon field</p>
                         </div>
                     </div>
                     @empty
