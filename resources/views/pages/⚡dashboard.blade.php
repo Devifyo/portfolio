@@ -117,7 +117,13 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
 
     public function updatedProjectImageUpload(): void
     {
-        $this->validate(['projectImageUpload' => ['image', 'max:5120']]);
+        $this->validate(
+            ['projectImageUpload' => ['image', 'max:5120']],
+            [
+                'projectImageUpload.image' => 'The file must be an image (JPG, PNG, or WebP).',
+                'projectImageUpload.max'   => 'This image is too heavy. Please use a file smaller than 5MB.',
+            ]
+        );
     }
 
     public function confirmProjectImage(int $i): void
