@@ -21,6 +21,9 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
     public string $hero_avatar    = '';
     public string $hero_github    = '';
     public string $hero_linkedin  = '';
+    public string $hero_media_type = 'terminal';
+    public string $hero_video      = '';
+    public $heroVideoUpload        = null;
 
     // File uploads — profile & projects
     public $avatarUpload        = null;
@@ -60,6 +63,27 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
     public string $contact_fiverr     = '';
     public string $contact_freelancer = '';
 
+    protected $messages = [
+        'avatarUpload.image'        => 'Please upload a valid image file (JPG, PNG, or WebP).',
+        'avatarUpload.max'          => 'Avatar must be smaller than 2 MB.',
+        'projectImageUpload.image'  => 'The file must be an image (JPG, PNG, or WebP).',
+        'projectImageUpload.max'    => 'Project image must be smaller than 5 MB.',
+        'categoryIconUpload.mimes'  => 'Icon must be a JPG, PNG, GIF, WebP, or SVG file.',
+        'categoryIconUpload.max'    => 'Icon must be smaller than 1 MB.',
+        'itemIconUpload.image'      => 'Please upload a valid image file (JPG, PNG, or WebP).',
+        'itemIconUpload.max'        => 'Skill icon must be smaller than 2 MB.',
+        'heroVideoUpload.mimes'     => 'Video must be MP4, WebM, or MOV format.',
+        'heroVideoUpload.max'       => 'Video must be smaller than 20 MB.',
+    ];
+
+    protected $validationAttributes = [
+        'avatarUpload'       => 'avatar',
+        'projectImageUpload' => 'project image',
+        'categoryIconUpload' => 'category icon',
+        'itemIconUpload'     => 'skill icon',
+        'heroVideoUpload'    => 'hero video',
+    ];
+
     public function mount(): void
     {
         if (Auth::user()->is_admin) {
@@ -75,8 +99,10 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
         $this->hero_bio       = $portfolio->hero_bio ?? '';
         $this->hero_available = $portfolio->hero_available ?? true;
         $this->hero_avatar    = $portfolio->hero_avatar ?? '';
-        $this->hero_github    = $portfolio->hero_github ?? '';
-        $this->hero_linkedin  = $portfolio->hero_linkedin ?? '';
+        $this->hero_github     = $portfolio->hero_github ?? '';
+        $this->hero_linkedin   = $portfolio->hero_linkedin ?? '';
+        $this->hero_media_type = $portfolio->hero_media_type ?? 'terminal';
+        $this->hero_video      = $portfolio->hero_video ?? '';
         $this->stat_startups  = $portfolio->stat_startups ?? 0;
         $this->stat_years     = $portfolio->stat_years ?? 0;
         $this->stat_projects  = $portfolio->stat_projects ?? 0;
@@ -111,6 +137,39 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
                 'avatarUpload.max'   => 'Profile photo must be smaller than 2MB.',
             ]
         );
+    }
+
+    // ---- Hero video upload ----
+
+    public function updatedHeroVideoUpload(): void
+    {
+        $this->validate(
+            ['heroVideoUpload' => ['mimes:mp4,webm,mov', 'max:20480']],
+            [
+                'heroVideoUpload.mimes' => 'Video must be MP4, WebM, or MOV format.',
+                'heroVideoUpload.max'   => 'Video must be smaller than 20 MB.',
+            ]
+        );
+    }
+
+    public function saveHeroVideo(): void
+    {
+        $this->validate(
+            ['heroVideoUpload' => ['required', 'mimes:mp4,webm,mov', 'max:20480']],
+            [
+                'heroVideoUpload.required' => 'Please select a video file first.',
+                'heroVideoUpload.mimes'    => 'Video must be MP4, WebM, or MOV format.',
+                'heroVideoUpload.max'      => 'Video must be smaller than 20 MB.',
+            ]
+        );
+        $this->hero_video = $this->heroVideoUpload->store('hero-videos', 'public');
+        $this->heroVideoUpload = null;
+    }
+
+    public function removeHeroVideo(): void
+    {
+        $this->hero_video = '';
+        $this->heroVideoUpload = null;
     }
 
     // ---- Project image upload ----
@@ -417,6 +476,8 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
             'hero_bio'          => $this->hero_bio,
             'hero_available'    => $this->hero_available,
             'hero_avatar'       => $avatarPath,
+            'hero_media_type'   => $this->hero_media_type,
+            'hero_video'        => $this->hero_video,
             'hero_github'       => $this->hero_github,
             'hero_linkedin'     => $this->hero_linkedin,
             'stat_startups'     => $this->stat_startups,
@@ -660,6 +721,84 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
                         <div class="md:col-span-2">
                             <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5"><i class="fab fa-linkedin text-slate-400 mr-1"></i> LinkedIn URL</label>
                             <input wire:model="hero_linkedin" type="url" placeholder="https://linkedin.com/in/username" class="input-field">
+                        </div>
+
+                        {{-- Hero Showcase Mode --}}
+                        <div class="md:col-span-2 pt-4 border-t border-slate-200 dark:border-white/10">
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
+                                <i class="fas fa-desktop text-brand-accent mr-1"></i> Hero Showcase
+                                <span class="text-slate-400 font-normal text-xs ml-1">What visitors see beside your intro</span>
+                            </label>
+                            <div class="grid grid-cols-3 gap-3">
+                                <label class="relative cursor-pointer">
+                                    <input wire:model="hero_media_type" type="radio" value="terminal" class="sr-only peer">
+                                    <div class="flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all
+                                        peer-checked:border-brand-accent peer-checked:bg-brand-accent/5
+                                        border-slate-200 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20">
+                                        <i class="fas fa-terminal text-lg text-slate-500 dark:text-slate-400 peer-checked:text-brand-accent"></i>
+                                        <span class="text-xs font-medium text-slate-600 dark:text-slate-300">Terminal</span>
+                                    </div>
+                                </label>
+                                <label class="relative cursor-pointer">
+                                    <input wire:model="hero_media_type" type="radio" value="video" class="sr-only peer">
+                                    <div class="flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all
+                                        peer-checked:border-brand-accent peer-checked:bg-brand-accent/5
+                                        border-slate-200 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20">
+                                        <i class="fas fa-play-circle text-lg text-slate-500 dark:text-slate-400"></i>
+                                        <span class="text-xs font-medium text-slate-600 dark:text-slate-300">Video</span>
+                                    </div>
+                                </label>
+                                <label class="relative cursor-pointer">
+                                    <input wire:model="hero_media_type" type="radio" value="projects" class="sr-only peer">
+                                    <div class="flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all
+                                        peer-checked:border-brand-accent peer-checked:bg-brand-accent/5
+                                        border-slate-200 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20">
+                                        <i class="fas fa-images text-lg text-slate-500 dark:text-slate-400"></i>
+                                        <span class="text-xs font-medium text-slate-600 dark:text-slate-300">Projects</span>
+                                    </div>
+                                </label>
+                            </div>
+
+                            @if($hero_media_type === 'video')
+                            <div class="mt-4 space-y-3">
+                                @if($hero_video)
+                                <div class="relative rounded-xl overflow-hidden border border-slate-200 dark:border-white/10">
+                                    <video class="w-full max-h-48 object-cover" muted>
+                                        <source src="{{ Storage::disk('public')->url($hero_video) }}">
+                                    </video>
+                                    <button wire:click="removeHeroVideo" type="button" class="absolute top-2 right-2 w-7 h-7 rounded-full bg-red-500/90 text-white flex items-center justify-center hover:bg-red-600 transition-colors">
+                                        <i class="fas fa-times text-xs"></i>
+                                    </button>
+                                </div>
+                                @endif
+                                <label class="block cursor-pointer">
+                                    <div class="flex items-center gap-2 px-4 py-3 rounded-xl border border-dashed border-slate-300 dark:border-white/20 hover:border-brand-accent/50 transition-colors text-sm text-slate-500 dark:text-slate-400 hover:text-brand-accent">
+                                        <i class="fas fa-cloud-upload-alt"></i>
+                                        <span>{{ $heroVideoUpload ? 'New video selected — save to apply' : ($hero_video ? 'Replace video' : 'Upload a video') }}</span>
+                                    </div>
+                                    <input wire:model="heroVideoUpload" type="file" accept="video/mp4,video/webm,video/quicktime" class="sr-only">
+                                </label>
+                                @if($heroVideoUpload)
+                                <div class="flex items-center gap-2">
+                                    <button wire:click="saveHeroVideo" type="button" class="px-4 py-2 text-xs font-semibold rounded-lg bg-brand-accent text-white hover:opacity-90 transition-opacity">
+                                        <i class="fas fa-check mr-1"></i> Confirm video
+                                    </button>
+                                    <button wire:click="$set('heroVideoUpload', null)" type="button" class="px-4 py-2 text-xs font-semibold rounded-lg border border-slate-300 dark:border-white/20 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                                        Cancel
+                                    </button>
+                                </div>
+                                @endif
+                                <div wire:loading.flex wire:target="heroVideoUpload" class="text-xs text-brand-accent items-center gap-1.5">
+                                    <i class="fas fa-circle-notch fa-spin text-[10px]"></i> Uploading video…
+                                </div>
+                                <p class="text-xs text-slate-400 dark:text-slate-500">MP4, WebM, or MOV · Max 20 MB</p>
+                                @error('heroVideoUpload') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
+                            </div>
+                            @elseif($hero_media_type === 'projects')
+                            <p class="mt-3 text-xs text-slate-500 dark:text-slate-400">
+                                <i class="fas fa-info-circle mr-1"></i> Your projects (from the Projects tab) will appear as an auto-rotating slideshow with title and description.
+                            </p>
+                            @endif
                         </div>
                     </div>
                     </div>{{-- /profile --}}

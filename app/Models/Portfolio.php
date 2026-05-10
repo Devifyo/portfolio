@@ -9,7 +9,7 @@ class Portfolio extends Model
 {
     protected $fillable = [
         'user_id', 'hero_name', 'hero_title', 'hero_bio', 'hero_available',
-        'hero_avatar', 'hero_github', 'hero_linkedin',
+        'hero_avatar', 'hero_media_type', 'hero_video', 'hero_github', 'hero_linkedin',
         'stat_startups', 'stat_years', 'stat_projects',
         'tech_stack', 'experience', 'projects',
         'contact_email', 'contact_location', 'contact_phone', 'contact_calendly',

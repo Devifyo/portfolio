@@ -308,17 +308,91 @@
                 @endif
             </div>
 
-            {{-- RIGHT: Terminal --}}
+            {{-- RIGHT: Showcase (Terminal / Video / Projects) --}}
             <div data-aos="fade-left" data-aos-duration="900" class="hidden md:block relative group">
                 @php
                 $isCategorized = !empty($portfolio->tech_stack) && isset($portfolio->tech_stack[0]['name']);
+                $mediaType = $portfolio->hero_media_type ?? 'terminal';
+                $heroProjects = collect($portfolio->projects ?? [])->filter(fn($p) => !empty($p['image']))->values();
                 @endphp
 
                 {{-- Glow halo --}}
                 <div class="absolute -inset-2 bg-gradient-to-br from-blue-400 via-violet-400 to-indigo-500 rounded-3xl blur-xl opacity-10 dark:opacity-10 group-hover:opacity-18 dark:group-hover:opacity-15 transition-all duration-700 pointer-events-none"></div>
-                {{-- Second softer halo for depth --}}
                 <div class="absolute -inset-4 bg-gradient-to-br from-blue-300/20 to-violet-300/20 dark:from-blue-600/5 dark:to-violet-600/5 rounded-3xl blur-2xl pointer-events-none"></div>
 
+                @if($mediaType === 'video' && $portfolio->hero_video)
+                {{-- ===== VIDEO MODE ===== --}}
+                <div class="relative rounded-2xl overflow-hidden border border-white dark:border-white/10"
+                     style="box-shadow: 0 0 0 1px rgba(100,116,139,0.25), 0 2px 4px 0 rgba(0,0,0,0.10), 0 8px 16px -2px rgba(0,0,0,0.14), 0 24px 48px -6px rgba(0,0,0,0.18), 0 40px 80px -12px rgba(99,102,241,0.20);">
+                    <video class="w-full aspect-video object-cover" autoplay loop muted playsinline>
+                        <source src="{{ Storage::disk('public')->url($portfolio->hero_video) }}">
+                    </video>
+                </div>
+
+                @elseif($mediaType === 'projects' && $heroProjects->count())
+                {{-- ===== PROJECTS SLIDESHOW MODE ===== --}}
+                <div x-data="{ current: 0, total: {{ $heroProjects->count() }} }"
+                     x-init="setInterval(() => current = (current + 1) % total, 4000)"
+                     class="relative rounded-2xl overflow-hidden border border-white dark:border-white/10"
+                     style="box-shadow: 0 0 0 1px rgba(100,116,139,0.25), 0 2px 4px 0 rgba(0,0,0,0.10), 0 8px 16px -2px rgba(0,0,0,0.14), 0 24px 48px -6px rgba(0,0,0,0.18), 0 40px 80px -12px rgba(99,102,241,0.20);">
+                    {{-- Header bar --}}
+                    <div class="flex items-center justify-between px-4 py-2.5 border-b border-slate-200/80 dark:border-white/5 bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-800/80 dark:to-slate-900/80">
+                        <div class="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                            <i class="fas fa-layer-group text-brand-accent text-xs"></i>
+                            Projects
+                        </div>
+                        <span class="text-[11px] text-slate-400 dark:text-slate-500" x-text="(current + 1) + ' / ' + total"></span>
+                    </div>
+
+                    <div class="relative aspect-video">
+                        @foreach($heroProjects as $pi => $proj)
+                        @php $projLink = $proj['url'] ?? ($proj['github'] ?? ''); @endphp
+                        <{{ $projLink ? 'a href="'.e($projLink).'" target="_blank" rel="noopener"' : 'div' }}
+                             x-show="current === {{ $pi }}"
+                             x-transition:enter="transition ease-out duration-700"
+                             x-transition:enter-start="opacity-0 scale-[1.02]"
+                             x-transition:enter-end="opacity-100 scale-100"
+                             x-transition:leave="transition ease-in duration-300"
+                             x-transition:leave-start="opacity-100"
+                             x-transition:leave-end="opacity-0"
+                             class="absolute inset-0 group/slide {{ $projLink ? 'cursor-pointer' : '' }}"
+                             @if($pi > 0) style="display:none" @endif>
+                            <img src="{{ Storage::disk('public')->url($proj['image']) }}"
+                                 alt="{{ $proj['name'] ?? '' }}"
+                                 class="w-full h-full object-cover {{ $projLink ? 'transition-transform duration-500 group-hover/slide:scale-105' : '' }}">
+                            <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-6 pt-16">
+                                @if(!empty($proj['name']))
+                                <h3 class="text-white font-display font-bold text-lg leading-tight">
+                                    {{ $proj['name'] }}
+                                    @if(!empty($proj['url']))
+                                    <i class="fas fa-external-link-alt text-white text-[11px] ml-1.5"></i>
+                                    @elseif(!empty($proj['github']))
+                                    <i class="fab fa-github text-white text-sm ml-1.5"></i>
+                                    @endif
+                                </h3>
+                                @endif
+                                @if(!empty($proj['description']))
+                                <p class="text-white/70 text-sm mt-1 line-clamp-2">{{ Str::limit($proj['description'], 100) }}</p>
+                                @endif
+                            </div>
+                        </{{ $projLink ? 'a' : 'div' }}>
+                        @endforeach
+                    </div>
+
+                    {{-- Dots --}}
+                    @if($heroProjects->count() > 1)
+                    <div class="absolute bottom-3 right-4 flex gap-1.5 z-10">
+                        @foreach($heroProjects as $pi => $proj)
+                        <button @click="current = {{ $pi }}"
+                                :class="current === {{ $pi }} ? 'bg-white scale-110' : 'bg-white/40 hover:bg-white/60'"
+                                class="w-2 h-2 rounded-full transition-all duration-300"></button>
+                        @endforeach
+                    </div>
+                    @endif
+                </div>
+
+                @else
+                {{-- ===== TERMINAL MODE (default) ===== --}}
                 <div class="relative font-mono text-sm bg-[#fcfcfc] dark:bg-[#080d16] rounded-2xl overflow-hidden border border-white dark:border-white/10"
                      style="box-shadow: 0 0 0 1px rgba(100,116,139,0.25), 0 2px 4px 0 rgba(0,0,0,0.10), 0 8px 16px -2px rgba(0,0,0,0.14), 0 24px 48px -6px rgba(0,0,0,0.18), 0 40px 80px -12px rgba(99,102,241,0.20);">
                     {{-- Terminal chrome --}}
@@ -331,13 +405,11 @@
                         </div>
                         <div class="flex-1 text-center text-[11px] text-slate-400 dark:text-slate-500 font-mono">~/portfolio — bash</div>
                     </div>
-                    {{-- Subtle top inner highlight --}}
                     <div class="h-px bg-gradient-to-r from-transparent via-white/80 to-transparent dark:via-white/5"></div>
                     {{-- Terminal body --}}
                     <div class="p-6 space-y-3 text-slate-600 dark:text-slate-300 leading-relaxed text-[13px] relative"
                          style="box-shadow: inset 0 2px 8px rgba(99,102,241,0.05);">
 
-                        {{-- Faint watermark --}}
                         <div class="absolute bottom-4 right-4 opacity-[0.04] dark:opacity-[0.04] select-none pointer-events-none">
                             <i class="fas fa-terminal text-7xl text-slate-900 dark:text-white"></i>
                         </div>
@@ -410,6 +482,7 @@
                         @endif
                     </div>
                 </div>
+                @endif
             </div>
         </div>
     </section>
@@ -597,20 +670,18 @@
                 <div class="project-img-card group relative rounded-2xl overflow-hidden h-72 cursor-pointer shadow-xl" data-aos="fade-up" data-aos-delay="{{ $i * 80 }}">
                     <img src="{{ $imageSrc }}" alt="{{ $project['name'] ?? 'Project' }}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
                     <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent flex flex-col justify-end p-7">
-                        <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-2.5 mb-2">
                             <h3 class="text-xl font-display font-bold text-white">{{ $project['name'] ?? 'Project' }}</h3>
-                            <div class="flex items-center gap-2">
-                                @if(!empty($project['github']))
-                                <a href="{{ $project['github'] }}" target="_blank" class="w-8 h-8 rounded-full bg-white/10 backdrop-blur flex items-center justify-center text-white hover:bg-white/25 transition-colors">
-                                    <i class="fab fa-github text-sm"></i>
-                                </a>
-                                @endif
-                                @if(!empty($project['url']))
-                                <a href="{{ $project['url'] }}" target="_blank" class="w-8 h-8 rounded-full bg-white/10 backdrop-blur flex items-center justify-center text-white hover:bg-white/25 transition-colors">
-                                    <i class="fas fa-external-link-alt text-xs"></i>
-                                </a>
-                                @endif
-                            </div>
+                            @if(!empty($project['github']))
+                            <a href="{{ $project['github'] }}" target="_blank" class="w-7 h-7 rounded-full bg-white/10 backdrop-blur flex items-center justify-center text-white hover:bg-white/25 transition-colors flex-shrink-0">
+                                <i class="fab fa-github text-sm"></i>
+                            </a>
+                            @endif
+                            @if(!empty($project['url']))
+                            <a href="{{ $project['url'] }}" target="_blank" class="w-7 h-7 rounded-full bg-white/10 backdrop-blur flex items-center justify-center text-white hover:bg-white/25 transition-colors flex-shrink-0">
+                                <i class="fas fa-external-link-alt text-[11px]"></i>
+                            </a>
+                            @endif
                         </div>
                         @if(!empty($project['tech']))
                         <div class="flex flex-wrap gap-1.5 mb-2">
@@ -621,7 +692,9 @@
                         @endif
                         @if(!empty($project['description']))
                         <div class="reveal">
-                            <p class="text-[13px] text-slate-300 leading-relaxed">{{ $project['description'] }}</p>
+                            <div class="bg-black/40 backdrop-blur-md rounded-lg px-3 py-2 mt-1">
+                                <p class="text-[13px] text-white/90 leading-relaxed">{{ $project['description'] }}</p>
+                            </div>
                         </div>
                         @endif
                     </div>
