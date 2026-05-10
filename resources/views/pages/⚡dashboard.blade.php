@@ -97,21 +97,7 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
                 ['name' => 'Technologies', 'icon_type' => 'fa', 'icon' => 'fas fa-code', 'color' => 'blue', 'items' => $raw],
             ];
         }
-        foreach ($raw as &$cat) {
-            if (!isset($cat['icon_type'])) $cat['icon_type'] = 'fa';
-            $normalised = [];
-            foreach ($cat['items'] ?? [] as $item) {
-                if (is_string($item)) {
-                    $normalised[] = ['text' => $item, 'icon_type' => 'fa', 'icon' => ''];
-                } else {
-                    if (!isset($item['icon_type'])) $item['icon_type'] = 'fa';
-                    $normalised[] = $item;
-                }
-            }
-            $cat['items'] = $normalised;
-        }
-        unset($cat);
-        $this->tech_stack = $raw;
+        $this->tech_stack = $this->normaliseTechStack($raw);
     }
 
     // ---- Avatar upload ----
@@ -182,24 +168,96 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
 
     public function addCategory(): void
     {
-        $this->tech_stack[] = ['name' => '', 'icon_type' => 'fa', 'icon' => 'fas fa-code', 'color' => 'blue', 'items' => []];
+        $this->tech_stack[] = [
+            '_key' => $this->newDomKey('cat'),
+            'name' => '',
+            'icon_type' => 'fa',
+            'icon' => 'fas fa-code',
+            'color' => 'blue',
+            'items' => [],
+        ];
+
     }
 
     public function removeCategory(int $i): void
     {
+        if (!array_key_exists($i, $this->tech_stack)) {
+            return;
+        }
+
         array_splice($this->tech_stack, $i, 1);
+
+        if ($this->categoryIconTarget === $i) {
+            $this->cancelCategoryIcon();
+        } elseif ($this->categoryIconTarget > $i) {
+            $this->categoryIconTarget--;
+        }
+
+        if ($this->itemIconUploadCategory === $i) {
+            $this->closeIconModal();
+        } elseif ($this->itemIconUploadCategory > $i) {
+            $this->itemIconUploadCategory--;
+        }
+
     }
 
     public function addCategoryItem(int $i): void
     {
+        if (!array_key_exists($i, $this->tech_stack)) {
+            return;
+        }
+
         $text = $this->newSkillText ?? '';
-        $this->tech_stack[$i]['items'][] = ['text' => trim($text), 'icon' => ''];
+        $this->tech_stack[$i]['items'][] = [
+            '_key' => $this->newDomKey('item'),
+            'text' => trim($text),
+            'icon_type' => 'fa',
+            'icon' => '',
+        ];
         $this->newSkillText = '';
     }
 
     public function removeCategoryItem(int $i, int $j): void
     {
+        if (!isset($this->tech_stack[$i]['items']) || !array_key_exists($j, $this->tech_stack[$i]['items'])) {
+            return;
+        }
+
         array_splice($this->tech_stack[$i]['items'], $j, 1);
+
+        if ($this->itemIconUploadCategory === $i && $this->itemIconUploadTarget === $j) {
+            $this->closeIconModal();
+        } elseif ($this->itemIconUploadCategory === $i && $this->itemIconUploadTarget !== null && $this->itemIconUploadTarget > $j) {
+            $this->itemIconUploadTarget--;
+        }
+
+    }
+
+    public function setCategoryIconType(int $i, string $type): void
+    {
+        if (!array_key_exists($i, $this->tech_stack)) {
+            return;
+        }
+
+        $this->tech_stack[$i]['icon_type'] = $type;
+
+        if ($type === 'fa' && empty($this->tech_stack[$i]['icon'])) {
+            $this->tech_stack[$i]['icon'] = 'fas fa-code';
+        }
+
+        if ($type === 'none') {
+            $this->tech_stack[$i]['icon'] = '';
+        }
+    }
+
+    public function removeCategoryIcon(int $i): void
+    {
+        if (!array_key_exists($i, $this->tech_stack)) {
+            return;
+        }
+
+        $this->tech_stack[$i]['icon'] = '';
+        $this->tech_stack[$i]['icon_type'] = 'none';
     }
 
     // ---- Category icon upload ----
@@ -358,7 +416,7 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
             'stat_startups'     => $this->stat_startups,
             'stat_years'        => $this->stat_years,
             'stat_projects'     => $this->stat_projects,
-            'tech_stack'        => $this->tech_stack,
+            'tech_stack'        => $this->techStackForStorage(),
             'experience'        => $this->experience,
             'projects'          => $this->projects,
             'contact_email'      => $this->contact_email,
@@ -375,6 +433,68 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
         $this->hero_avatar = $avatarPath;
         $this->saved       = true;
         $this->dispatch('portfolio-saved');
+    }
+
+    private function normaliseTechStack(array $raw): array
+    {
+        $normalisedStack = [];
+
+        foreach ($raw as $cat) {
+            if (!is_array($cat)) {
+                continue;
+            }
+
+            $normalisedItems = [];
+            foreach ($cat['items'] ?? [] as $item) {
+                if (is_string($item)) {
+                    $normalisedItems[] = [
+                        '_key' => $this->newDomKey('item'),
+                        'text' => $item,
+                        'icon_type' => 'fa',
+                        'icon' => '',
+                    ];
+                } elseif (is_array($item)) {
+                    $item['_key'] = $item['_key'] ?? $this->newDomKey('item');
+                    $item['icon_type'] = $item['icon_type'] ?? 'fa';
+                    $item['icon'] = $item['icon'] ?? '';
+                    $item['text'] = $item['text'] ?? '';
+                    $normalisedItems[] = $item;
+                }
+            }
+
+            $cat['_key'] = $cat['_key'] ?? $this->newDomKey('cat');
+            $cat['icon_type'] = $cat['icon_type'] ?? 'fa';
+            $cat['icon'] = $cat['icon'] ?? '';
+            $cat['color'] = $cat['color'] ?? 'blue';
+            $cat['items'] = $normalisedItems;
+
+            $normalisedStack[] = $cat;
+        }
+
+        return $normalisedStack;
+    }
+
+    private function techStackForStorage(): array
+    {
+        return array_map(function (array $cat) {
+            unset($cat['_key']);
+
+            $cat['items'] = array_map(function ($item) {
+                if (!is_array($item)) {
+                    return $item;
+                }
+
+                unset($item['_key']);
+                return $item;
+            }, $cat['items'] ?? []);
+
+            return $cat;
+        }, $this->tech_stack);
+    }
+
+    private function newDomKey(string $prefix): string
+    {
+        return $prefix . '-' . str_replace('.', '-', uniqid('', true));
     }
 
 };
@@ -561,13 +681,9 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
                     </div>{{-- /stats --}}
 
                     {{-- ======================== TECH STACK TAB ======================== --}}
-                    <div x-show="tab === 'skills'" style="display:none">
+                    <div x-show="tab === 'skills'" style="display:none" wire:key="tech-stack-tab-panel">
 
                     @php
-                    $colorOptions = [
-                        'blue'=>'Blue','violet'=>'Violet','emerald'=>'Green','red'=>'Red',
-                        'amber'=>'Amber','cyan'=>'Cyan','orange'=>'Orange','pink'=>'Pink',
-                    ];
                     $colorAccent = [
                         'blue'   => 'border-l-blue-500',   'violet' => 'border-l-violet-500',
                         'emerald'=> 'border-l-emerald-500', 'red'    => 'border-l-red-500',
@@ -599,30 +715,51 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
                         </button>
                     </div>
 
-                    @forelse($tech_stack as $ci => $cat)
+                    <div wire:key="tech-stack-category-list" wire:replace.self class="flow-root">
+                    @php
+                    $emptyStateClass = empty($tech_stack) ? '' : 'hidden';
+                    @endphp
+                    <div class="text-center py-16 border-2 border-dashed border-slate-200 dark:border-white/10 rounded-2xl {{ $emptyStateClass }}" wire:key="tech-stack-empty-state">
+                        <div class="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-layer-group text-2xl text-slate-300 dark:text-slate-600"></i>
+                        </div>
+                        <p class="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-1">No categories yet</p>
+                        <p class="text-xs text-slate-400 mb-4">Example: "Backend", "AI/ML", "Frontend" — each can have many skills</p>
+                        <button wire:click="addCategory" type="button"
+                                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-accent text-white text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm">
+                            <i class="fas fa-plus text-xs"></i> Add first category
+                        </button>
+                    </div>
+
+                    <?php foreach ($tech_stack as $ci => $cat): ?>
                     @php
                     $accent   = $colorAccent[$cat['color'] ?? 'blue'] ?? 'border-l-blue-500';
                     $iconCls  = $colorIcon[$cat['color'] ?? 'blue'] ?? $colorIcon['blue'];
                     $catType  = $cat['icon_type'] ?? 'fa';
                     $catIcon  = $cat['icon'] ?? '';
+                    $catKey   = $cat['_key'] ?? 'cat-' . $ci;
+                    $blankIconSrc = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
                     $catImgSrc = ($catType === 'image' && !empty($catIcon))
                         ? (str_starts_with($catIcon, 'http') ? $catIcon : asset('storage/' . $catIcon))
                         : null;
+                    $showCatImage = $catImgSrc ? '' : 'hidden';
+                    $showCatFa = ($catType === 'fa' && !empty($catIcon)) ? '' : 'hidden';
+                    $showCatFallback = (!$catImgSrc && ($catType !== 'fa' || empty($catIcon))) ? '' : 'hidden';
+                    $showCatFaEditor = $catType === 'fa' ? '' : 'hidden';
+                    $showCatImageEditor = $catType === 'image' ? '' : 'hidden';
+                    $showCatUploadedImage = $catImgSrc ? '' : 'hidden';
+                    $showCatUploadInput = !$catImgSrc ? '' : 'hidden';
                     @endphp
 
-                    <div class="border border-slate-200 dark:border-white/10 border-l-4 {{ $accent }} rounded-2xl overflow-hidden mb-4 bg-white/60 dark:bg-slate-800/30 backdrop-blur-sm" wire:key="cat-{{ $ci }}">
+                    <div class="border border-slate-200 dark:border-white/10 border-l-4 {{ $accent }} rounded-2xl overflow-hidden mb-4 bg-white/60 dark:bg-slate-800/30 backdrop-blur-sm" wire:key="tech-stack-{{ $catKey }}">
 
                         {{-- ── Card header: icon preview + name + color + delete ── --}}
                         <div class="flex items-center gap-3 px-4 py-3.5 bg-white/70 dark:bg-slate-900/50 border-b border-slate-200 dark:border-white/5">
                             {{-- Live icon preview --}}
                             <div class="w-10 h-10 rounded-xl {{ $iconCls }} flex items-center justify-center flex-shrink-0 text-lg">
-                                @if($catImgSrc)
-                                    <img src="{{ $catImgSrc }}" class="w-6 h-6 object-contain" alt="icon">
-                                @elseif($catType === 'fa' && !empty($catIcon))
-                                    <i class="{{ $catIcon }}"></i>
-                                @else
-                                    <i class="fas fa-layer-group opacity-40"></i>
-                                @endif
+                                <img src="{{ $catImgSrc ?: $blankIconSrc }}" class="w-6 h-6 object-contain {{ $showCatImage }}" alt="icon">
+                                <i class="{{ $catIcon ?: 'fas fa-code' }} {{ $showCatFa }}"></i>
+                                <i class="fas fa-layer-group opacity-40 {{ $showCatFallback }}"></i>
                             </div>
                             {{-- Name input --}}
                             <input wire:model="tech_stack.{{ $ci }}.name" type="text"
@@ -631,9 +768,14 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
                             {{-- Color picker --}}
                             <select wire:model="tech_stack.{{ $ci }}.color"
                                     class="text-xs bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-lg px-2 py-1.5 text-slate-600 dark:text-slate-300 outline-none cursor-pointer flex-shrink-0">
-                                @foreach($colorOptions as $val => $label)
-                                <option value="{{ $val }}">{{ $label }}</option>
-                                @endforeach
+                                <option value="blue">Blue</option>
+                                <option value="violet">Violet</option>
+                                <option value="emerald">Green</option>
+                                <option value="red">Red</option>
+                                <option value="amber">Amber</option>
+                                <option value="cyan">Cyan</option>
+                                <option value="orange">Orange</option>
+                                <option value="pink">Pink</option>
                             </select>
                             {{-- Icon help tooltip --}}
                             <div x-data="{ tooltip: false }" class="relative flex-shrink-0">
@@ -661,47 +803,44 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
                             <div class="flex items-center gap-2 flex-wrap">
                                 <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex-shrink-0">Icon:</span>
 
-                                {{-- Toggle FA / Image / None ──}}
+                                {{-- Toggle FA / Image / None --}}
                                 <div class="flex rounded-lg overflow-hidden border border-slate-200 dark:border-white/10 text-[11px] font-bold flex-shrink-0">
-                                    <button type="button" wire:click="$set('tech_stack.{{ $ci }}.icon_type', 'fa'); $set('tech_stack.{{ $ci }}.icon', 'fas fa-code')"
+                                    <button type="button" wire:click="setCategoryIconType({{ $ci }}, 'fa')"
                                             class="px-3 py-1.5 transition-all {{ $catType === 'fa' ? 'bg-brand-accent text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
                                         <i class="fas fa-font mr-1"></i>Icon
                                     </button>
-                                    <button type="button" wire:click="$set('tech_stack.{{ $ci }}.icon_type', 'image')"
+                                    <button type="button" wire:click="setCategoryIconType({{ $ci }}, 'image')"
                                             class="px-3 py-1.5 border-l border-slate-200 dark:border-white/10 transition-all {{ $catType === 'image' ? 'bg-brand-accent text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
                                         <i class="fas fa-image mr-1"></i>Upload
                                     </button>
-                                    <button type="button" wire:click="$set('tech_stack.{{ $ci }}.icon_type', 'none'); $set('tech_stack.{{ $ci }}.icon', '')"
+                                    <button type="button" wire:click="setCategoryIconType({{ $ci }}, 'none')"
                                             class="px-3 py-1.5 border-l border-slate-200 dark:border-white/10 transition-all {{ $catType === 'none' ? 'bg-brand-accent text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
                                         None
                                     </button>
                                 </div>
 
-                                @if($catType === 'fa')
-                                <div class="flex items-center gap-2 flex-1">
+                                <div class="flex items-center gap-2 flex-1 {{ $showCatFaEditor }}">
                                     <input wire:model="tech_stack.{{ $ci }}.icon" type="text"
                                            placeholder="Type icon class, e.g. fas fa-brain"
                                            class="flex-1 min-w-[160px] font-mono text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-1.5 outline-none focus:border-brand-accent text-slate-700 dark:text-slate-200 placeholder-slate-400">
                                     <a href="https://fontawesome.com/search" target="_blank" class="text-[10px] text-brand-accent hover:underline flex-shrink-0">Browse icons</a>
                                 </div>
-                                @elseif($catType === 'image')
-                                    @if($catImgSrc)
-                                    <div class="flex items-center gap-2">
-                                        <img src="{{ $catImgSrc }}" class="w-8 h-8 object-contain rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 p-0.5">
+
+                                <div class="{{ $showCatImageEditor }}">
+                                    <div class="flex items-center gap-2 {{ $showCatUploadedImage }}">
+                                        <img src="{{ $catImgSrc ?: $blankIconSrc }}" class="w-8 h-8 object-contain rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 p-0.5">
                                         <button type="button"
-                                                wire:click="$set('tech_stack.{{ $ci }}.icon', ''); $set('tech_stack.{{ $ci }}.icon_type', 'none')"
+                                                wire:click="removeCategoryIcon({{ $ci }})"
                                                 class="text-[11px] text-red-500 hover:underline font-medium">Remove</button>
                                     </div>
-                                    @else
-                                    <label class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-brand-accent/40 hover:border-brand-accent text-[11px] text-brand-accent font-semibold transition-colors">
+                                    <label class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-brand-accent/40 hover:border-brand-accent text-[11px] text-brand-accent font-semibold transition-colors {{ $showCatUploadInput }}">
                                         <i class="fas fa-upload"></i> Upload icon
                                         <input wire:model="categoryIconUpload" type="file" accept="image/*,.svg" class="sr-only">
                                     </label>
-                                    <div wire:loading wire:target="categoryIconUpload" class="text-[11px] text-brand-accent flex items-center gap-1">
+                                    <div wire:loading wire:target="categoryIconUpload" class="text-[11px] text-brand-accent items-center gap-1">
                                         <i class="fas fa-circle-notch fa-spin"></i>
                                     </div>
-                                    @endif
-                                @endif
+                                </div>
                             </div>
                         </div>
 
@@ -714,24 +853,23 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
 
                             {{-- Items as pills/tags --}}
                             <div class="flex flex-wrap gap-2 mb-3">
-                                @forelse($cat['items'] ?? [] as $ji => $item)
+                                <?php foreach (($cat['items'] ?? []) as $ji => $item): ?>
                                 @php
                                 $iText = is_array($item) ? ($item['text'] ?? '') : $item;
                                 $iIcon = is_array($item) ? ($item['icon'] ?? '') : '';
                                 $iType = is_array($item) ? ($item['icon_type'] ?? 'fa') : 'fa';
+                                $itemKey = is_array($item) ? ($item['_key'] ?? 'item-' . $ci . '-' . $ji) : 'item-' . $ci . '-' . $ji;
                                 $iImgSrc = ($iType === 'image' && !empty($iIcon))
                                     ? (str_starts_with($iIcon, 'http') ? $iIcon : asset('storage/' . $iIcon))
                                     : null;
-                                $isUploadingThis = $itemIconUploadCategory === $ci && $itemIconUploadTarget === $ji;
+                                $showItemImage = $iImgSrc ? '' : 'hidden';
+                                $showItemFa = (!$iImgSrc && !empty($iIcon) && $iType === 'fa') ? '' : 'hidden';
                                 @endphp
-                                <div class="inline-flex items-center gap-1 px-2 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-sm text-slate-700 dark:text-slate-300 group relative" wire:key="item-{{ $ci }}-{{ $ji }}">
+                                <div class="inline-flex items-center gap-1 px-2 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-sm text-slate-700 dark:text-slate-300 group relative" wire:key="tech-stack-{{ $catKey }}-{{ $itemKey }}">
 
                                     {{-- Show uploaded image icon --}}
-                                    @if($iImgSrc)
-                                        <img src="{{ $iImgSrc }}" class="w-4 h-4 object-contain" alt="">
-                                    @elseif(!empty($iIcon) && $iType === 'fa')
-                                        <i class="{{ $iIcon }} text-xs text-brand-accent"></i>
-                                    @endif
+                                    <img src="{{ $iImgSrc ?: $blankIconSrc }}" class="w-4 h-4 object-contain {{ $showItemImage }}" alt="">
+                                    <i class="{{ $iIcon ?: 'fas fa-code' }} text-xs text-brand-accent {{ $showItemFa }}"></i>
 
                                     <input wire:model="tech_stack.{{ $ci }}.items.{{ $ji }}.text" type="text"
                                            placeholder="Skill"
@@ -752,17 +890,8 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
                                         <i class="fas fa-times text-[10px]"></i>
                                     </button>
 
-                                    {{-- Error message (only for this item) --}}
-                                    @if($isUploadingThis)
-                                        @error('itemIconUpload')
-                                            <div class="absolute top-full left-0 mt-1 px-2 py-1 rounded-lg bg-red-500 text-white text-xs whitespace-nowrap z-10 shadow-lg">
-                                                <i class="fas fa-exclamation-circle mr-1"></i>{{ $message }}
-                                            </div>
-                                        @enderror
-                                    @endif
                                 </div>
-                                @empty
-                                @endforelse
+                                <?php endforeach; ?>
                             </div>
 
                             {{-- Quick add input --}}
@@ -781,19 +910,8 @@ new #[Title('Dashboard — Folio')] #[Layout('layouts::saas')] class extends Com
                             <p class="text-[11px] text-slate-400 mt-1.5">Click <i class="fas fa-image text-[10px]"></i> to upload an icon image (PNG, SVG, WebP)</p>
                         </div>
                     </div>
-                    @empty
-                    <div class="text-center py-16 border-2 border-dashed border-slate-200 dark:border-white/10 rounded-2xl">
-                        <div class="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-4">
-                            <i class="fas fa-layer-group text-2xl text-slate-300 dark:text-slate-600"></i>
-                        </div>
-                        <p class="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-1">No categories yet</p>
-                        <p class="text-xs text-slate-400 mb-4">Example: "Backend", "AI/ML", "Frontend" — each can have many skills</p>
-                        <button wire:click="addCategory" type="button"
-                                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-accent text-white text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm">
-                            <i class="fas fa-plus text-xs"></i> Add first category
-                        </button>
+                    <?php endforeach; ?>
                     </div>
-                    @endforelse
                     </div>{{-- /skills --}}
 
                     {{-- ======================== EXPERIENCE TAB ======================== --}}
